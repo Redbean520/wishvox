@@ -58,6 +58,14 @@ export function AiSettings(): JSX.Element {
           <input value={settings.model} placeholder="deepseek-chat" onChange={(e) => upd({ model: e.target.value.trim() })} />
         </label>
         <label className="field">
+          视觉模型（图纸识别，可留空）
+          <input
+            value={settings.visionModel}
+            placeholder="gpt-4o / qwen-vl-max（支持图片输入）"
+            onChange={(e) => upd({ visionModel: e.target.value.trim() })}
+          />
+        </label>
+        <label className="field">
           API Key
           <input type="password" value={settings.apiKey} placeholder="只存浏览器本地（BYOK）" onChange={(e) => upd({ apiKey: e.target.value.trim() })} />
         </label>
@@ -76,7 +84,7 @@ export function AiSettings(): JSX.Element {
             <option value="en">English</option>
           </select>
         </div>
-        <p className="note">key 与会话日志只存浏览器本地，无服务端（REQ-013 / V5）。</p>
+        <p className="note">key 与会话日志只存浏览器本地，无服务端（REQ-013 / V5）。视觉模型仅用于「图纸 → 方块」识图，留空则只用本地识别。</p>
       </div>
     </Section>
   )

@@ -14,6 +14,9 @@ interface ProviderToolCall {
 export interface ProviderMessage {
   readonly role: 'system' | 'user' | 'assistant' | 'tool'
   readonly content: string | null
+  /** 多模态图片（data URL / http URL）。仅 `user` 角色会拼进 content parts——
+   *  拼豆图纸识别（`ai/pattern-vision.ts`）用；不带图片时 wire 形状与单模态完全一致。 */
+  readonly images?: readonly string[]
   /** assistant 消息的工具调用批 */
   readonly toolCalls?: readonly ProviderToolCall[]
   /** tool 消息对应的调用 id */
@@ -225,6 +228,8 @@ export class StreamAccumulator {
 }
 
 // ── OpenAI 兼容适配器 ──
+// （wire 形状转换在 `wire.ts`：messages / tools 的 Chat Completions 数组，含多模态 content parts）
+import { toWireMessages, toWireTools } from './wire'
 
 export type FetchLike = (input: string, init: RequestInit) => Promise<Response>
 
@@ -245,34 +250,6 @@ interface OpenAiCompatOptions {
   readonly onWireState?: (s: WireState) => void // T8 件一：流式 / 空闲翻转（可选，不改请求语义）
 }
 
-function toWireMessages(messages: readonly ProviderMessage[]): Array<Record<string, unknown>> {
-  return messages.map((m) => {
-    if (m.role === 'assistant') {
-      return {
-        role: 'assistant',
-        content: m.content ?? null,
-        ...(m.toolCalls && m.toolCalls.length > 0
-          ? {
-              tool_calls: m.toolCalls.map((c) => ({
-                id: c.id,
-                type: 'function',
-                function: { name: c.name, arguments: JSON.stringify(c.args) },
-              })),
-            }
-          : {}),
-      }
-    }
-    if (m.role === 'tool') return { role: 'tool', tool_call_id: m.toolCallId, content: m.content ?? '' }
-    return { role: m.role, content: m.content ?? '' }
-  })
-}
-
-function toWireTools(tools: readonly AiToolSchema[]): Array<Record<string, unknown>> {
-  return tools.map((t) => ({
-    type: 'function',
-    function: { name: t.name, description: t.description, parameters: t.parameters },
-  }))
-}
 
 /** OpenAI 兼容 Chat Completions（流式 SSE）。fetch 可注入（tests / harness 的脚本化 provider） */
 export class OpenAiCompatAdapter implements ProviderAdapter {
@@ -297,7 +274,8 @@ export class OpenAiCompatAdapter implements ProviderAdapter {
         body: JSON.stringify({
           model: this.opts.model,
           messages: toWireMessages(req.messages),
-          tools: toWireTools(req.tools),
+          // 空工具面不发送（视觉识别是一次性读图请求：部分 OpenAI 兼容端点拒收 "tools": []）
+          ...(req.tools.length > 0 ? { tools: toWireTools(req.tools) } : {}),
           stream: true,
           ...(this.opts.temperature !== undefined ? { temperature: this.opts.temperature } : {}),
         }),

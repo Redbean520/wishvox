@@ -51,6 +51,9 @@ class ShimEvent {
 export class ShimElement {
   readonly nodeType: number = NODE_ELEMENT
   readonly childNodes: ShimElement[] = []
+  /** `<select>` 挂载时 react-dom 会读 `node.options` / 写 `node.multiple`——垫片给最小可写面 */
+  options: unknown[] = []
+  multiple = false
   readonly style: Record<string, string> = {}
   readonly dataset: Record<string, string> = {}
   parentNode: ShimElement | null = null
@@ -171,7 +174,8 @@ export class ShimElement {
   }
 
   getContext(): Record<string, unknown> {
-    return {}
+    // 2D 画布空壳：预览绘制（ui/pattern-preview.ts）只用到这两个调用 + fillStyle 赋值
+    return { fillStyle: '', fillRect: () => undefined, clearRect: () => undefined }
   }
 
   setPointerCapture(pointerId: number): void {

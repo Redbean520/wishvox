@@ -23,6 +23,9 @@ export interface AiSettings {
   readonly baseUrl: string
   readonly apiKey: string
   readonly model: string
+  /** 视觉模型（可选）：图纸识别用；留空 = 只用本地识别。与上面同 baseURL / key，
+   *  填一个支持图片输入的模型名（如 gpt-4o / qwen-vl-max），默认 DeepSeek chat 不支持看图。 */
+  readonly visionModel: string
   /** 监督档位（REQ-010 三档；口径卡 §二） */
   readonly oversight: 'strict' | 'checkpoint' | 'yolo'
   /** 语言（REQ-004：设置面板可存语言偏好；首版只影响系统提示词的输出语言句） */
@@ -34,6 +37,7 @@ export const DEFAULT_AI_SETTINGS: AiSettings = {
   baseUrl: PROVIDER_PRESETS[0].baseUrl,
   apiKey: '',
   model: PROVIDER_PRESETS[0].model,
+  visionModel: '',
   oversight: 'strict',
   language: 'zh',
 }

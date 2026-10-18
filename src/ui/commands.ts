@@ -3,6 +3,7 @@ import { parseColorInput, parseRgbInput } from '../core/color'
 import { getEditor } from '../app/runtime'
 import { applyCameraParams, resetCameraView } from '../edit/camera-sync'
 import { setUi, useEditorUi } from '../state/editor-store'
+import { patchPattern, usePatternStore } from '../state/pattern-store'
 import type { EditorUiState, Tool } from '../state/editor-store'
 import { askClearLocalData, askResetChoice, clearLocalDataAndReload, runShowcaseReset } from './showcase-actions'
 
@@ -143,6 +144,30 @@ export const cmd = {
       getEditor().setGridFollow(which, which === 'work' ? !s.followLayerWork : !s.followLayerRef)
     },
   }),
+  /** 图纸导入（AI 工作台 · 图纸 → 方块）：把已识别/已核对的网格写成方块。
+   *  一次 = 一条补丁（`edit/pattern-apply.ts`）；空网格 / 越界 / 色板满都在模型零改动下给出原因。 */
+  patternApply: {
+    id: 'pattern.apply',
+    label: '生成方块',
+    entry: 'AI·图纸导入',
+    available: editing,
+    run: () => {
+      const s = usePatternStore.getState()
+      if (s.grid === null) {
+        patchPattern({ status: 'error', message: '先选择图纸并识别，再生成方块' })
+        return
+      }
+      const result = getEditor().applyPattern({
+        grid: s.grid,
+        plane: s.options.plane,
+        origin: s.options.origin,
+        thickness: s.options.thickness,
+        clearEmpty: s.options.clearEmpty,
+        label: `图纸·${s.grid.cols}×${s.grid.rows}`,
+      })
+      patchPattern({ status: result.ok ? 'ready' : 'error', message: result.message })
+    },
+  } satisfies AppCommand,
   // ── 右栏：相机面板 ──
   cameraReset: {
     id: 'camera.reset',

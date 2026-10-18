@@ -24,6 +24,8 @@ import * as color from './color'
 import * as history from './history'
 import * as modelApi from './model-api'
 import * as aiWrite from './ai-write'
+import * as patternApply from './pattern-apply'
+import type { PatternApplyArgs, PatternApplyResult } from './pattern-apply'
 import * as project from './project'
 import * as sessionView from './session-view'
 import * as structure from './structure'
@@ -239,6 +241,12 @@ export class Editor {
   /** AI 逐块清单兜底（set_cells）：显式坐标差分 → 恰好 1 条 stroke 补丁（V1）；人工一笔中 ⇒ `{busy}`（A-09）。 */
   aiSetCells(args: { cells: ReadonlyArray<{ x: number; y: number; z: number; key: number }>; label?: string }): Patch | null | { busy: true } {
     return aiWrite.aiSetCells(this, args)
+  }
+
+  /** 图纸导入（本地识别 / AI 识别 → 预览 → 确认写入）：一次 = 一条补丁；实现 = pattern-apply.ts。
+   *  与 place/erase/paint 同口径的模型级写面（检视态门在 UI 命令层）。 */
+  applyPattern(args: PatternApplyArgs): PatternApplyResult {
+    return patternApply.applyPattern(this, args)
   }
 
   /** AI undo/redo（带 job 开始地板——退不进 job 开始前用户的编辑，PetitMaker ①-23 先例）。 */
