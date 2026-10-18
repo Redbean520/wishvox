@@ -15,10 +15,6 @@ import { rgbToHex } from '../../core/color'
 import { channelDistance, pixelAt } from './types'
 import type { GridGeometry, PatternColorStat, PatternGrid, RgbaImage, Rgb } from './types'
 
-/** 取样内缩：躲开 1px 格线与抗锯齿（按格边长的 20%，1–3px） */
-const INNER_INSET_RATIO = 0.2
-/** 亮度裁剪比例：每侧裁掉这么多"最亮/最暗"像素——色号文字与浅灰水印通常落在两端 */
-const LUM_TRIM_RATIO = 0.3
 /** 与填充色差 ≤ 它算"同一颜色"（用于一致性 / 文字占比） */
 const FILL_TOLERANCE = 26
 /** 文字占比 ≥ 它算该格内印了色号（白底 + 文字 = 白豆） */
@@ -36,61 +32,94 @@ interface CellSample {
   readonly uniformity: number
 }
 
-interface SamplePixel {
-  readonly r: number
-  readonly g: number
-  readonly b: number
-  readonly lum: number
-}
-
 /**
- * 逐格取样：**亮度裁剪均值**（medial-mean）。
- * 为什么不用"中心中位色"：色号文字压在格中央，9px 的小格里能盖住近一半；
- * 为什么不用"四角众数"：小格四角只有 2×2px，容易踩到格线/抗锯齿/水印。
- * 亮度裁剪把最亮与最暗各 30% 的像素扔掉，剩下的中段基本就是底色：
- * 深底白字丢白字、浅底深字丢深字、浅灰水印落在亮端也被丢掉。
+ * 逐格取样：**边圈中位色 + 内部众数色** 两路互验。
+ * - 边圈（格里侧外沿一圈）几乎总是底色：中位色精度高、不受压缩噪声影响；
+ * - 但 9px 小格里的 4 字色号可能贴到格边，边圈被文字染白/染黑 ⇒ 此时改用**内部众数色**
+ *   （底色像素占多数，文字/水印是少数派）。
+ * 两路差异 > 45 且众数色占比 ≥ 40% 时以众数色为准；否则用更精确的边圈中位色。
  */
 function sampleCell(img: RgbaImage, x0: number, y0: number, x1: number, y1: number): CellSample {
   const w = x1 - x0
   const h = y1 - y0
   if (w <= 0 || h <= 0) return { hex: null, text: false, uniformity: 0 }
-  if (w < 3 || h < 3) {
+  if (w < 4 || h < 4) {
     const p = pixelAt(img, Math.floor((x0 + x1) / 2), Math.floor((y0 + y1) / 2))
     if (p.a < 32) return { hex: null, text: false, uniformity: 0 }
     return { hex: rgbToHex(p), text: false, uniformity: 1 }
   }
-  const inset = Math.max(1, Math.min(3, Math.round(Math.min(w, h) * INNER_INSET_RATIO)))
-  const pixels: SamplePixel[] = []
-  for (let y = y0 + inset; y < y1 - inset; y++) {
-    for (let x = x0 + inset; x < x1 - inset; x++) {
-      const p = pixelAt(img, x, y)
-      if (p.a < 32) continue
-      pixels.push({ r: p.r, g: p.g, b: p.b, lum: 0.299 * p.r + 0.587 * p.g + 0.114 * p.b })
+  const inset = Math.max(1, Math.min(3, Math.round(Math.min(w, h) * 0.18)))
+  const bx0 = x0 + inset
+  const by0 = y0 + inset
+  const bx1 = x1 - inset
+  const by1 = y1 - inset
+  const ring = Math.max(1, Math.min(3, Math.round(Math.min(w, h) * 0.16)))
+  const ringSamples: Rgb[] = []
+  const push = (x: number, y: number): void => {
+    const p = pixelAt(img, x, y)
+    if (p.a < 32) return
+    ringSamples.push({ r: p.r, g: p.g, b: p.b })
+  }
+  for (let t = 0; t < ring; t++) {
+    for (let x = bx0; x < bx1; x++) {
+      push(x, by0 + t)
+      push(x, by1 - 1 - t)
     }
   }
-  if (pixels.length === 0) return { hex: null, text: false, uniformity: 0 }
-  pixels.sort((a, b) => a.lum - b.lum)
-  const trim = Math.floor(pixels.length * LUM_TRIM_RATIO)
-  const middle = pixels.slice(trim, pixels.length - trim)
-  const picked = middle.length > 0 ? middle : pixels
-  let r = 0
-  let g = 0
-  let b = 0
-  for (const p of picked) {
-    r += p.r
-    g += p.g
-    b += p.b
+  for (let t = 0; t < ring; t++) {
+    for (let y = by0 + ring; y < by1 - ring; y++) {
+      push(bx0 + t, y)
+      push(bx1 - 1 - t, y)
+    }
   }
-  const fill: Rgb = { r: Math.round(r / picked.length), g: Math.round(g / picked.length), b: Math.round(b / picked.length) }
+  if (ringSamples.length === 0) return { hex: null, text: false, uniformity: 0 }
+  const median = (vals: number[]): number => {
+    const s = [...vals].sort((a, b) => a - b)
+    return s[s.length >> 1] ?? 0
+  }
+  const ringMedian: Rgb = {
+    r: median(ringSamples.map((p) => p.r)),
+    g: median(ringSamples.map((p) => p.g)),
+    b: median(ringSamples.map((p) => p.b)),
+  }
+  // 内部众数色（高低 4 位量化）
+  const buckets = new Map<number, { n: number; r: number; g: number; b: number }>()
+  let total = 0
+  for (let y = by0; y < by1; y++) {
+    for (let x = bx0; x < bx1; x++) {
+      const p = pixelAt(img, x, y)
+      if (p.a < 32) continue
+      const key = ((p.r >> 4) << 8) | ((p.g >> 4) << 4) | (p.b >> 4)
+      const cur = buckets.get(key) ?? { n: 0, r: 0, g: 0, b: 0 }
+      cur.n++
+      cur.r += p.r
+      cur.g += p.g
+      cur.b += p.b
+      buckets.set(key, cur)
+      total++
+    }
+  }
+  let best: { n: number; r: number; g: number; b: number } | null = null
+  for (const v of buckets.values()) if (best === null || v.n > best.n) best = v
+  const modeFill: Rgb | null = best === null ? null : { r: Math.round(best.r / best.n), g: Math.round(best.g / best.n), b: Math.round(best.b / best.n) }
+  const modeShare = best === null || total === 0 ? 0 : best.n / total
+  const fill: Rgb =
+    modeFill !== null && modeShare >= 0.4 && channelDistance(ringMedian, modeFill) > 45 ? modeFill : ringMedian
+  // 一致性 / 文字占比
   let near = 0
-  for (const p of pixels) if (channelDistance(p, fill) <= FILL_TOLERANCE) near++
-  const uniformity = near / pixels.length
+  for (let y = by0; y < by1; y++) {
+    for (let x = bx0; x < bx1; x++) {
+      const p = pixelAt(img, x, y)
+      if (p.a < 32) continue
+      if (channelDistance(p, fill) <= FILL_TOLERANCE) near++
+    }
+  }
+  const uniformity = total === 0 ? 0 : near / total
   const inkRatio = 1 - uniformity
   const lum = (fill.r + fill.g + fill.b) / 3
   const spread = Math.max(fill.r, fill.g, fill.b) - Math.min(fill.r, fill.g, fill.b)
   const nearWhite = lum >= PAPER_LUM && spread <= PAPER_SPREAD
   if (nearWhite) {
-    // 白底 + 深色文字 = 白色豆；纯白无字 = 空位
     return inkRatio >= TEXT_RATIO ? { hex: '#ffffff', text: true, uniformity } : { hex: null, text: false, uniformity }
   }
   return { hex: rgbToHex(fill), text: inkRatio >= TEXT_RATIO, uniformity }
