@@ -15,96 +15,85 @@ import { rgbToHex } from '../../core/color'
 import { channelDistance, pixelAt } from './types'
 import type { GridGeometry, PatternColorStat, PatternGrid, RgbaImage, Rgb } from './types'
 
-/** 四角小方块的边长占比（格内 28%，上限 6px） */
-const CORNER_RATIO = 0.28
-const CORNER_MAX = 6
-/** 角块取样内缩：躲开 1px 格线与抗锯齿 */
-const INSET = 2
-/** 中心区文字判定：与填充明度相反的那一端像素占比 */
-const TEXT_RATIO = 0.03
+/** 取样内缩：躲开 1px 格线与抗锯齿（按格边长的 20%，1–3px） */
+const INNER_INSET_RATIO = 0.2
+/** 亮度裁剪比例：每侧裁掉这么多"最亮/最暗"像素——色号文字与浅灰水印通常落在两端 */
+const LUM_TRIM_RATIO = 0.3
+/** 与填充色差 ≤ 它算"同一颜色"（用于一致性 / 文字占比） */
+const FILL_TOLERANCE = 26
+/** 文字占比 ≥ 它算该格内印了色号（白底 + 文字 = 白豆） */
+const TEXT_RATIO = 0.045
+/** "纸白"判据：亮度高且几乎无彩度 */
+const PAPER_LUM = 235
+const PAPER_SPREAD = 12
 
 interface CellSample {
   /** 格子填充色（null = 空位） */
   readonly hex: string | null
-  /** 中心区是否有色号文字（用于区分"白豆"与"空白纸"） */
+  /** 格内是否有色号文字（用来区分"白豆"与"空白纸"） */
   readonly text: boolean
-  /** 角块众数色的占比（0–1）——低 = 格内有多种颜色（拍照/倾斜） */
+  /** 近色像素占比（0–1）——低 = 格内颜色杂乱（拍照 / 水印 / 符号） */
   readonly uniformity: number
 }
 
-const bucketKey = (r: number, g: number, b: number): number => (r >> 4) * 256 + (g >> 4) * 16 + (b >> 4)
+interface SamplePixel {
+  readonly r: number
+  readonly g: number
+  readonly b: number
+  readonly lum: number
+}
 
-/** 逐格取样：角块众数色（填充色）+ 中心区文字检测 */
+/**
+ * 逐格取样：**亮度裁剪均值**（medial-mean）。
+ * 为什么不用"中心中位色"：色号文字压在格中央，9px 的小格里能盖住近一半；
+ * 为什么不用"四角众数"：小格四角只有 2×2px，容易踩到格线/抗锯齿/水印。
+ * 亮度裁剪把最亮与最暗各 30% 的像素扔掉，剩下的中段基本就是底色：
+ * 深底白字丢白字、浅底深字丢深字、浅灰水印落在亮端也被丢掉。
+ */
 function sampleCell(img: RgbaImage, x0: number, y0: number, x1: number, y1: number): CellSample {
   const w = x1 - x0
   const h = y1 - y0
   if (w <= 0 || h <= 0) return { hex: null, text: false, uniformity: 0 }
-  if (w < 6 || h < 6) {
+  if (w < 3 || h < 3) {
     const p = pixelAt(img, Math.floor((x0 + x1) / 2), Math.floor((y0 + y1) / 2))
-    if (p.a < 32) return { hex: null, text: false, uniformity: 1 }
+    if (p.a < 32) return { hex: null, text: false, uniformity: 0 }
     return { hex: rgbToHex(p), text: false, uniformity: 1 }
   }
-  const patch = Math.max(2, Math.min(CORNER_MAX, Math.round(Math.min(w, h) * CORNER_RATIO)))
-  const corners: Array<[number, number]> = [
-    [x0 + INSET, y0 + INSET],
-    [x1 - patch - INSET, y0 + INSET],
-    [x0 + INSET, y1 - patch - INSET],
-    [x1 - patch - INSET, y1 - patch - INSET],
-  ]
-  const hist = new Map<number, { n: number; r: number; g: number; b: number }>()
-  let samples = 0
-  for (const [bx, by] of corners) {
-    for (let y = by; y < by + patch; y++) {
-      for (let x = bx; x < bx + patch; x++) {
-        const p = pixelAt(img, x, y)
-        samples++
-        if (p.a < 32) continue
-        const k = bucketKey(p.r, p.g, p.b)
-        const cur = hist.get(k) ?? { n: 0, r: 0, g: 0, b: 0 }
-        cur.n++
-        cur.r += p.r
-        cur.g += p.g
-        cur.b += p.b
-        hist.set(k, cur)
-      }
-    }
-  }
-  if (samples === 0) return { hex: null, text: false, uniformity: 0 }
-  let best: { n: number; r: number; g: number; b: number } | null = null
-  for (const v of hist.values()) if (best === null || v.n > best.n) best = v
-  if (best === null) return { hex: null, text: false, uniformity: 0 }
-  const fill: Rgb = { r: Math.round(best.r / best.n), g: Math.round(best.g / best.n), b: Math.round(best.b / best.n) }
-  const uniformity = best.n / samples
-  const lum = (fill.r + fill.g + fill.b) / 3
-  const spread = Math.max(fill.r, fill.g, fill.b) - Math.min(fill.r, fill.g, fill.b)
-  // 中心区：与填充明度相反的一端出现得足够多 ⇒ 有文字
-  let dark = 0
-  let light = 0
-  let total = 0
-  const cx0 = x0 + Math.round(w * 0.3)
-  const cx1 = x1 - Math.round(w * 0.3)
-  const cy0 = y0 + Math.round(h * 0.25)
-  const cy1 = y1 - Math.round(h * 0.25)
-  for (let y = cy0; y < cy1; y++) {
-    for (let x = cx0; x < cx1; x++) {
+  const inset = Math.max(1, Math.min(3, Math.round(Math.min(w, h) * INNER_INSET_RATIO)))
+  const pixels: SamplePixel[] = []
+  for (let y = y0 + inset; y < y1 - inset; y++) {
+    for (let x = x0 + inset; x < x1 - inset; x++) {
       const p = pixelAt(img, x, y)
       if (p.a < 32) continue
-      total++
-      const mx = Math.max(p.r, p.g, p.b)
-      const mn = Math.min(p.r, p.g, p.b)
-      if (mx < 130) dark++
-      if (mn > 235) light++
+      pixels.push({ r: p.r, g: p.g, b: p.b, lum: 0.299 * p.r + 0.587 * p.g + 0.114 * p.b })
     }
   }
-  const ratio = total === 0 ? 0 : lum < 128 ? light / total : dark / total
-  const text = ratio >= TEXT_RATIO
-  // "纸白"：亮度高且几乎无彩度（JPEG 抖动会让白格落在 235–255，不能要求三通道都 ≥243；
-  //  米白豆（如 #fbf2ec）彩度差 15 ⇒ 不算纸白，仍是内容）
-  const nearWhite = lum >= 235 && spread <= 12
-  if (nearWhite) {
-    return text ? { hex: '#ffffff', text: true, uniformity } : { hex: null, text: false, uniformity }
+  if (pixels.length === 0) return { hex: null, text: false, uniformity: 0 }
+  pixels.sort((a, b) => a.lum - b.lum)
+  const trim = Math.floor(pixels.length * LUM_TRIM_RATIO)
+  const middle = pixels.slice(trim, pixels.length - trim)
+  const picked = middle.length > 0 ? middle : pixels
+  let r = 0
+  let g = 0
+  let b = 0
+  for (const p of picked) {
+    r += p.r
+    g += p.g
+    b += p.b
   }
-  return { hex: rgbToHex(fill), text, uniformity }
+  const fill: Rgb = { r: Math.round(r / picked.length), g: Math.round(g / picked.length), b: Math.round(b / picked.length) }
+  let near = 0
+  for (const p of pixels) if (channelDistance(p, fill) <= FILL_TOLERANCE) near++
+  const uniformity = near / pixels.length
+  const inkRatio = 1 - uniformity
+  const lum = (fill.r + fill.g + fill.b) / 3
+  const spread = Math.max(fill.r, fill.g, fill.b) - Math.min(fill.r, fill.g, fill.b)
+  const nearWhite = lum >= PAPER_LUM && spread <= PAPER_SPREAD
+  if (nearWhite) {
+    // 白底 + 深色文字 = 白色豆；纯白无字 = 空位
+    return inkRatio >= TEXT_RATIO ? { hex: '#ffffff', text: true, uniformity } : { hex: null, text: false, uniformity }
+  }
+  return { hex: rgbToHex(fill), text: inkRatio >= TEXT_RATIO, uniformity }
 }
 
 export interface SampleOutcome {

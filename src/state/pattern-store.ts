@@ -26,6 +26,13 @@ export interface PatternOptions {
   mergeTolerance: number
   /** 裁掉四周空白边带（默认 false = 保留图纸标称整张网格） */
   trimBlankEdges: boolean
+  /** 手动裁边（单位：格）——自动识别后仍有图例/标尺残留时用 */
+  cropLeft: number
+  cropTop: number
+  cropRight: number
+  cropBottom: number
+  /** 水平镜像（图纸标注「镜像」时） */
+  mirrorX: boolean
   /** 与背景同色 = 空位 */
   backgroundToEmpty: boolean
 }
@@ -57,6 +64,11 @@ export const DEFAULT_PATTERN_OPTIONS: PatternOptions = {
   manualRows: null,
   mergeTolerance: 18,
   trimBlankEdges: false,
+  cropLeft: 0,
+  cropTop: 0,
+  cropRight: 0,
+  cropBottom: 0,
+  mirrorX: false,
   backgroundToEmpty: true,
 }
 

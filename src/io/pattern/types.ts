@@ -76,6 +76,15 @@ export interface RecognizeOptions {
   readonly mergeTolerance?: number
   /** 裁掉四周"整行/整列都是空白或标尺条"的边带（默认 false = 保留图纸标称的整张网格） */
   readonly trimBlankEdges?: boolean
+  /** 手动裁边（单位：格）：自动识别之后再去掉四边若干格（用来裁图例 / 残留标尺） */
+  readonly crop?: {
+    readonly left?: number
+    readonly top?: number
+    readonly right?: number
+    readonly bottom?: number
+  }
+  /** 水平镜像：图纸标注「镜像」或与实物左右相反时勾选 */
+  readonly mirrorX?: boolean
   /** 与背景同色的格子算空位（默认 true） */
   readonly backgroundToEmpty?: boolean
   /** 全透明格子算空位（默认 true） */

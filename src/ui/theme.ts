@@ -87,9 +87,13 @@ export const APP_CSS = `
   .used-colors { display: flex; flex-wrap: wrap; gap: 4px; }
 
   /* ── 中栏：视口与 HUD ── */
-  .stage { position: relative; min-width: 0; min-height: 0; background: #0b0d10; }
-  .viewport-host { position: absolute; inset: 0; }
+  .stage { position: relative; min-width: 0; min-height: 0; background: #0b0d10; display: flex; flex-direction: column; }
+  /* 视口宿主铺满 stage；子节点必须拿到确定高度（否则 canvas 按内容高度渲染，底部会空出一条黑带） */
+  .viewport-host { position: absolute; inset: 0; display: flex; }
+  .viewport-host > * { flex: 1; min-width: 0; min-height: 0; height: 100%; }
   .viewport-host canvas { display: block; width: 100%; height: 100%; }
+  .stage-tools { position: absolute; right: 12px; top: 12px; display: flex; gap: 6px; z-index: 2; }
+  .stage-tools .tool { height: 28px; min-width: 28px; padding: 0 9px; font-size: 11.5px; background: rgba(12, 16, 22, 0.82); border-color: var(--line); backdrop-filter: blur(6px); }
   .hud { position: absolute; left: 12px; top: 12px; max-width: 420px; padding: 8px 10px; border-radius: var(--radius);
     background: rgba(12, 16, 22, 0.82); border: 1px solid var(--line); backdrop-filter: blur(6px); pointer-events: none;
     font-family: var(--font-mono); font-size: 11px; line-height: 1.7; color: var(--fg-dim); white-space: pre; }

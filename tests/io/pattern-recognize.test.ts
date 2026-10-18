@@ -175,3 +175,34 @@ describe('IO-P5 · 大图性能（1600px 上界内的一次识别不应卡住面
     expect(elapsed).toBeLessThan(3000)
   })
 })
+describe('IO-P6 · 手动裁边与水平镜像（r07）', () => {
+  const img = chart({ cols: 3, rows: 2, cell: 10, margin: 0, colors: ['#c0392b', '#3b6ea5', '#e8c547', '#2e8b57', '#d4839b', '#6f6c6a'] })
+
+  it('裁边（单位：格）按格裁掉四边，几何与数据同步收缩', () => {
+    const result = recognizePattern(img, { crop: { left: 1, right: 1, top: 1 } })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.geometry.cols).toBe(1)
+    expect(result.geometry.rows).toBe(1)
+    // 裁掉左/右 ⇒ 只剩中间列；裁掉顶部一行 ⇒ 只剩第 2 行
+    expect(result.grid.cells).toEqual(['#d4839b'])
+  })
+
+  it('裁边过多 ⇒ 明确失败（不返回空网格）', () => {
+    const result = recognizePattern(img, { crop: { left: 2, right: 2, top: 2 } })
+    expect(result.ok).toBe(false)
+  })
+
+  it('mirrorX 行内左右翻转（列数不变）', () => {
+    const normal = recognizePattern(img)
+    const mirrored = recognizePattern(img, { mirrorX: true })
+    expect(normal.ok && mirrored.ok).toBe(true)
+    if (!normal.ok || !mirrored.ok) return
+    expect(mirrored.grid.cols).toBe(normal.grid.cols)
+    for (let r = 0; r < normal.grid.rows; r++) {
+      const a = normal.grid.cells.slice(r * normal.grid.cols, (r + 1) * normal.grid.cols)
+      const b = mirrored.grid.cells.slice(r * mirrored.grid.cols, (r + 1) * mirrored.grid.cols)
+      expect(b).toEqual([...a].reverse())
+    }
+  })
+})

@@ -49,6 +49,7 @@ For in-browser checks that cannot run headless (WebGL, frame rate, render invari
 
 - **Two modes.** Inspect (default) vs. edit. In inspect mode every human editing entry point is disabled; switching modes is a button, not a hidden keyboard shortcut.
 - **Direct editing.** Place / erase / paint / eyedropper with per-tool brush sizes, a 3D viewport, layer display modes (all / below / single layer), camera reset and independent work-grid guides.
+- **Camera controls (browser-safe).** In edit mode: left = brush, **Shift + left = orbit**, **middle-drag / Alt + left = pan**, wheel = zoom; right-drag orbit still works but is no longer required (browsers/extensions hijack right-drag gestures). In inspect mode: left = orbit, middle or right = pan. A small viewport toolbar has mode switch + reset view.
 - **Procedural operations.** Nine ops — layer add, bevel, clear scope, mirror array, noise fill, noise sculpt, preset shape, raise by layers, recolor — each taking a scope, parameters and a seed.
 - **Parts and compositions.** Group blocks into named parts, and group parts into compositions, so "recolor the roof" can target a real object instead of the whole model.
 - **History.** One patch per stroke, or per applied operation batch. Undo, redo, and jump to any point in the patch log.
@@ -91,7 +92,7 @@ AI tool ──► runProgramOp ──► change set ─────────�
 
 Open **AI 编辑 → 🖼 图纸 → 方块**:
 
-1. **选择图纸** — a chart image (PNG / JPEG / WebP). The local detector cuts away the printed row/column ruler bars, finds the cell size (printed grid lines first, colour-edge periodicity for line-free charts), samples each cell's fill colour while ignoring colour-code text, and treats "white cell + code" as a white bead rather than an empty cell — an 80×89 printed MARD chart comes out as a 80×89 grid, offline. Skewed photos or unusual symbol legends: click **🤖 AI 识别** instead (needs a vision-capable model configured under AI 连接 → 视觉模型; the local channel never leaves your machine). Optional **裁掉四周空白边** crops blank margins for tighter placement.
+1. **选择图纸** — a chart image (PNG / JPEG / WebP). The local detector cuts away printed row/column ruler bars (including the blue MARD-style strips), finds the cell size (printed grid lines first, colour-edge periodicity for line-free charts), estimates each cell's fill colour with a luminance-trimmed mean (so dense 4-character colour codes and watermarks are ignored), and treats "white cell + code" as a white bead rather than an empty cell. Residual legend strips can be removed with the **裁边（格）** left/top/right/bottom inputs, and **水平镜像** flips charts printed in mirror mode. Skewed photos or unusual symbol legends: click **🤖 AI 识别** instead (needs a vision-capable model configured under AI 连接 → 视觉模型; the local channel never leaves your machine). Optional **裁掉四周空白边** crops blank margins for tighter placement.
 2. **核对预览** — the canvas shows *the blocks that will be placed*, plus size / colour count / empty cells. Wrong grid → set rows/cols manually or move the 颜色归并 threshold.
 3. **摆放参数** — plane (floor `x-z` or wall `x-y`), top-left origin, thickness (1–8 layers along the normal), and whether empty cells also clear the target area.
 4. **生成方块** — one import = **one patch**, so one undo removes it. The count and any out-of-range cells are reported; nothing is written when the input is invalid.

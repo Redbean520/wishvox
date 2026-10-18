@@ -31,7 +31,11 @@ export function ViewportHud(): JSX.Element {
           ⚠ {warn.text}
         </div>
       )}
-      <div className="hud-hint">{mode === 'edit' ? '编辑态：左键落笔 · 右键旋转 · 滚轮缩放' : '检视态：左键旋转 · 中键快缩 · 右键平移'}</div>
+      <div className="hud-hint">
+        {mode === 'edit'
+          ? '编辑态：左键笔刷 · Shift+左键 旋转 · 中键 / Alt+左键 平移 · 滚轮缩放'
+          : '检视态：左键旋转 · 中键 / 右键 平移 · 滚轮缩放'}
+      </div>
     </div>
   )
 }

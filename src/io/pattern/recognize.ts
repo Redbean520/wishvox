@@ -5,6 +5,15 @@ import { hexRgb } from './types'
 import { detectGrid } from './detect'
 import { sampleGrid } from './sample'
 
+/** 水平镜像（行内左右翻转） */
+function mirrorGrid(grid: { cols: number; rows: number; cells: ReadonlyArray<string | null> }): { cols: number; rows: number; cells: Array<string | null> } {
+  const cells: Array<string | null> = []
+  for (let r = 0; r < grid.rows; r++) {
+    for (let c = grid.cols - 1; c >= 0; c--) cells.push(grid.cells[r * grid.cols + c] ?? null)
+  }
+  return { cols: grid.cols, rows: grid.rows, cells }
+}
+
 /**
  * 一张图纸图片 → 颜色网格。`ok:false` 是可判定的失败（图片太小 / 检不出网格 / 超上限），
  * 调用方把 `reason` 原样显示给用户；不抛错 = 面板不必写 try/catch。
@@ -21,15 +30,34 @@ export function recognizePattern(img: RgbaImage, opts: RecognizeOptions = {}): P
     background = hexRgb(opts.background)
     if (background === null) return { ok: false, reason: `背景色无效（须为不透明 HEX）：${opts.background}` }
   }
-  const sampled = sampleGrid(img, geometry, {
+  let cropped = geometry
+  const crop = opts.crop
+  if (crop !== undefined) {
+    const cl = Math.max(0, Math.round(crop.left ?? 0))
+    const ct = Math.max(0, Math.round(crop.top ?? 0))
+    const cr = Math.max(0, Math.round(crop.right ?? 0))
+    const cb = Math.max(0, Math.round(crop.bottom ?? 0))
+    const cols = geometry.cols - cl - cr
+    const rows = geometry.rows - ct - cb
+    if (cols < 1 || rows < 1) return { ok: false, reason: '裁边过多：剩余行列不足 1（请缩小裁边格数）' }
+    cropped = {
+      ...geometry,
+      cols,
+      rows,
+      left: geometry.left + cl * geometry.cellW,
+      top: geometry.top + ct * geometry.cellH,
+    }
+  }
+  const sampled = sampleGrid(img, cropped, {
     background,
     mergeTolerance: opts.mergeTolerance,
     backgroundToEmpty: opts.backgroundToEmpty,
   })
+  const grid = opts.mirrorX === true ? mirrorGrid(sampled.grid) : sampled.grid
   return {
     ok: true,
-    geometry,
-    grid: sampled.grid,
+    geometry: cropped,
+    grid,
     palette: sampled.palette,
     backgroundColor: background === null ? null : `rgb(${background.r}, ${background.g}, ${background.b})`,
     emptyCells: sampled.emptyCells,

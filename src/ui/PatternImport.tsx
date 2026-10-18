@@ -47,6 +47,8 @@ function recognizeLocal(rgba: RgbaImage, options: PatternOptions): void {
     mergeTolerance: options.mergeTolerance,
     backgroundToEmpty: options.backgroundToEmpty,
     trimBlankEdges: options.trimBlankEdges,
+    crop: { left: options.cropLeft, top: options.cropTop, right: options.cropRight, bottom: options.cropBottom },
+    mirrorX: options.mirrorX,
     ...(manual !== undefined ? { manual } : {}),
   })
   if (!result.ok) {
@@ -168,6 +170,19 @@ export function PatternImport(): JSX.Element {
     })
   }
 
+  const cropField = (label: string, key: 'cropLeft' | 'cropTop' | 'cropRight' | 'cropBottom'): JSX.Element => (
+    <label className="field" style={{ flex: 1 }}>
+      {label}
+      <input
+        type="number"
+        min={0}
+        max={64}
+        value={options[key]}
+        onChange={(e) => updateOptions({ [key]: Math.max(0, Math.min(64, Math.round(Number(e.target.value)) || 0)) } as never)}
+      />
+    </label>
+  )
+
   const numField = (label: string, value: number | null, onChange: (v: number | null) => void, placeholder: string): JSX.Element => (
     <label className="field" style={{ flex: 1 }}>
       {label}
@@ -282,6 +297,23 @@ export function PatternImport(): JSX.Element {
         <input type="checkbox" checked={options.trimBlankEdges} onChange={(e) => updateOptions({ trimBlankEdges: e.target.checked })} />
         裁掉四周空白边（默认保留图纸整张网格）
       </label>
+
+      <div className="rail-group" style={{ padding: '8px 0 2px' }}>
+        裁边（单位：格）
+      </div>
+      <div style={{ display: 'flex', gap: 6 }}>
+        {cropField('左', 'cropLeft')}
+        {cropField('上', 'cropTop')}
+        {cropField('右', 'cropRight')}
+        {cropField('下', 'cropBottom')}
+      </div>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, margin: '4px 0', color: 'var(--fg-dim)' }}>
+        <input type="checkbox" checked={options.mirrorX} onChange={(e) => updateOptions({ mirrorX: e.target.checked })} />
+        水平镜像（图纸标注「镜像」时勾选）
+      </label>
+      <p className="note" style={{ margin: '2px 0 0' }}>
+        顶部/左右的行列号条会自动裁；若底部还残留图例色卡条，把「下」加 1–3 格裁掉。
+      </p>
 
       <div className="rail-group" style={{ padding: '8px 0 2px' }}>
         摆放

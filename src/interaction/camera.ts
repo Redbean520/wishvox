@@ -74,12 +74,24 @@ export class CameraRig {
       },
       true,
     )
-    canvas.addEventListener('pointerdown', (e) => {
-      if (e.button === 1) {
-        if (this.wheelTimer !== null) window.clearTimeout(this.wheelTimer)
-        this.controls.zoomSpeed = ZOOM_FAST
-      }
-    })
+    // 交互面重设计（r07）：中键 = 平移；Shift+左键 = 旋转、Alt+左键 = 平移（编辑态左键平时归笔刷）。
+    // 捕获阶段先于 OrbitControls 的冒泡监听执行 ⇒ 能在同一次按下里覆写 mouseButtons。
+    canvas.addEventListener(
+      'pointerdown',
+      (e) => {
+        if (e.button !== 0) return
+        if (this.mode === 'edit') {
+          if (e.shiftKey) this.controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE
+          else if (e.altKey) this.controls.mouseButtons.LEFT = THREE.MOUSE.PAN
+        } else if (e.altKey) {
+          this.controls.mouseButtons.LEFT = THREE.MOUSE.PAN
+        }
+      },
+      true,
+    )
+    const restoreButtons = (): void => this.applyInteractionMode()
+    canvas.addEventListener('pointerup', restoreButtons)
+    canvas.addEventListener('pointercancel', restoreButtons)
   }
 
   /** F1：对准模型 AABB 中心的初始机位（空模型回 home 位） */
@@ -149,7 +161,7 @@ export class CameraRig {
     if (this.onCameraChange) this.onCameraChange(this.getCameraState())
   }
 
-  /** F5：双态的交互面——检视 = 左转/中缩/右平移；编辑 = 左笔刷（本层不转）/中缩/右转（V12：无键盘） */
+  /** 双态交互面（r07 重设计）：中键统一 = 平移（滚轮缩放）；检视 = 左转/右平移；编辑 = 左笔刷/右转（不允许右键手势的环境可用 Shift/Alt+左键） */
   setInteractionMode(mode: InteractionMode): void {
     this.mode = mode
     this.applyInteractionMode()
@@ -161,10 +173,11 @@ export class CameraRig {
 
   private applyInteractionMode(): void {
     if (this.mode === 'edit') {
-      // 编辑态左键归笔刷（Viewport 自己消费 pointer 事件）⇒ 相机层显式禁用（-1 = NONE）
-      this.controls.mouseButtons = { LEFT: -1 as unknown as THREE.MOUSE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE }
+      // 编辑态左键归笔刷（Viewport 自己消费 pointer 事件）⇒ 相机层显式禁用（-1 = NONE）；
+      // 中键改平移（原中键是 DOLLY，与滚轮重复）；右键旋转保留（已抑制右键菜单）。
+      this.controls.mouseButtons = { LEFT: -1 as unknown as THREE.MOUSE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE }
     } else {
-      this.controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN }
+      this.controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.PAN }
     }
   }
 
