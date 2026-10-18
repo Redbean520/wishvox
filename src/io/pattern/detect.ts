@@ -14,6 +14,7 @@
 import { PATTERN_LIMITS } from './types'
 import type { GridGeometry, RecognizeOptions, RgbaImage, Rgb } from './types'
 import { channelDistance, pixelAt } from './types'
+import { detectByLattice } from './lattice'
 
 /** 背景色判定阈值（最大通道差）：四边取样的颜色都在它以内 ⇒ 认为是同一种纸质背景 */
 const BG_UNIFORM_TOL = 8
@@ -249,11 +250,34 @@ export function detectGrid(img: RgbaImage, opts: RecognizeOptions = {}): DetectO
     }
   }
 
+  // 通道一：图上画了贯穿全图的格线（带色号文字的印刷图纸几乎都有）⇒ 直接按格线定位。
+  // 格线检测比色差周期稳得多：文字会把"内部要平"的周期判据彻底打乱。
+  const lattice = detectByLattice(img)
+  if (lattice !== null) {
+    warnings.push('检测到格线：按格线定位网格（适合带色号/文字的印刷图纸）')
+    return {
+      ok: true,
+      background: bg,
+      warnings,
+      geometry: {
+        cols: lattice.cols,
+        rows: lattice.rows,
+        left: lattice.left,
+        top: lattice.top,
+        cellW: lattice.cell,
+        cellH: lattice.cell,
+        confidence: 0.95,
+        source: 'auto',
+      },
+    }
+  }
+  // 通道二：纯色块图纸（无格线）⇒ 用边界色差周期估计
   const edgeX = columnEdges(img, region)
   const edgeY = rowEdges(img, region)
   // 两轴都有周期 = 最强证据；只有一轴有（例如 2×1 的单行图纸）⇒ 用该轴格长补齐
   const found = findCellSize(edgeX, edgeY) ?? (findSinglePeriod(edgeX) ?? findSinglePeriod(edgeY))
   if (found === null) {
+    // 周期通道也没找到：小图按 1 像素 = 1 格兜底，否则要求手动填行列
     if (width <= PATTERN_LIMITS.maxSide && height <= PATTERN_LIMITS.maxSide) {
       warnings.push('未检测到规则方格：按 1 像素 = 1 格处理（原生像素图纸/无格线图纸）')
       return {

@@ -11,7 +11,8 @@ import { decodeProject } from './serialize'
  * 本地 dev / vitest 下 `BASE_URL='/'` 得 `/showcase/…`；GitHub 项目页构建下得 `/wishvox/showcase/…`。
  * 替换默认件仍只需换 `public/showcase/` 文件（本常量只写文件名）。
  */
-export const SHOWCASE_URL = `${import.meta.env.BASE_URL}showcase/blue-big-fat-fish.json`
+// `import.meta.env` 只在 Vite 构建里存在：非 Vite 环境（Node 里跑集成脚本）退回根路径，不崩
+export const SHOWCASE_URL = `${import.meta.env?.BASE_URL ?? '/'}showcase/blue-big-fat-fish.json`
 
 /** 注入面：只要求 fetch 的"够用形状"（`ok` + `text()`），不绑 `Response` 具体实现（无头测试可直造）。 */
 export type ShowcaseFetch = (url: string) => Promise<{ ok: boolean; text(): Promise<string> }>

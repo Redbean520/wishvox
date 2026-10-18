@@ -91,7 +91,7 @@ AI tool ──► runProgramOp ──► change set ─────────�
 
 Open **AI 编辑 → 🖼 图纸 → 方块**:
 
-1. **选择图纸** — a chart image (PNG / JPEG / WebP). The local detector trims the paper margin, finds the cell size, samples each cell's colour and merges near-duplicate colours. Symbol/code charts or skewed photos: click **🤖 AI 识别** instead (needs a vision-capable model configured under AI 连接 → 视觉模型; the local channel never leaves your machine).
+1. **选择图纸** — a chart image (PNG / JPEG / WebP). The local detector trims paper margins and ruler bars, finds the cell size (printed grid lines first, colour-edge periodicity for line-free charts), samples each cell's fill colour while ignoring colour-code text, and treats "white cell + code" as a white bead rather than an empty cell — so printed bead charts work offline. Skewed photos or unusual symbol legends: click **🤖 AI 识别** instead (needs a vision-capable model configured under AI 连接 → 视觉模型; the local channel never leaves your machine).
 2. **核对预览** — the canvas shows *the blocks that will be placed*, plus size / colour count / empty cells. Wrong grid → set rows/cols manually or move the 颜色归并 threshold.
 3. **摆放参数** — plane (floor `x-z` or wall `x-y`), top-left origin, thickness (1–8 layers along the normal), and whether empty cells also clear the target area.
 4. **生成方块** — one import = **one patch**, so one undo removes it. The count and any out-of-range cells are reported; nothing is written when the input is invalid.
