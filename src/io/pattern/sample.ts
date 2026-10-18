@@ -18,7 +18,7 @@ import type { GridGeometry, PatternColorStat, PatternGrid, RgbaImage, Rgb } from
 /** 与填充色差 ≤ 它算"同一颜色"（用于一致性 / 文字占比） */
 const FILL_TOLERANCE = 26
 /** 文字占比 ≥ 它算该格内印了色号（白底 + 文字 = 白豆） */
-const TEXT_RATIO = 0.045
+const TEXT_RATIO = 0.022
 /** "纸白"判据：亮度高且几乎无彩度 */
 const PAPER_LUM = 235
 const PAPER_SPREAD = 12

@@ -254,6 +254,9 @@ export function PatternImport(): JSX.Element {
             预览 = 即将摆放的方块：{grid.cols}×{grid.rows} 格 · {palette.length} 色 · 空 {emptyCells} 格
             {geometry !== null && geometry.source === 'auto' ? ` · 格边长 ${geometry.cellW.toFixed(1)}px` : ''}
           </p>
+          <p className="note" style={{ margin: '2px 0 0' }}>
+            棋盘格 = 空位（不摆块）。想只看图案本体可勾「裁掉四周空白边」，或在下方「裁边」填格数。
+          </p>
         </>
       ) : (
         <p className="note" style={{ margin: '6px 0 0' }}>

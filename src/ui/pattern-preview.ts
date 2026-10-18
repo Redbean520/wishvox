@@ -2,8 +2,9 @@
 // 预览画的是**将要生成的方块颜色**（不是原图）——所以它是"识别是否正确"的判据，而不是装饰。
 import type { PatternGrid } from '../io/pattern/types'
 
-/** 空位在预览里的底色（与视口背景同族，能看出"这些格子不会摆块"） */
-const EMPTY_COLOR = '#11161d'
+/** 空位在预览里画成"淡棋盘格"：一眼能看出这是"不摆块的格子"，而不是识别失败的黑洞 */
+const EMPTY_COLOR_A = '#171e28'
+const EMPTY_COLOR_B = '#11161f'
 
 export function drawPatternPreview(canvas: HTMLCanvasElement, grid: PatternGrid | null): void {
   const ctx = canvas.getContext('2d')
@@ -19,7 +20,7 @@ export function drawPatternPreview(canvas: HTMLCanvasElement, grid: PatternGrid 
   for (let row = 0; row < grid.rows; row++) {
     for (let col = 0; col < grid.cols; col++) {
       const hex = grid.cells[row * grid.cols + col]
-      ctx.fillStyle = hex ?? EMPTY_COLOR
+      ctx.fillStyle = hex ?? ((row + col) % 2 === 0 ? EMPTY_COLOR_A : EMPTY_COLOR_B)
       ctx.fillRect(col, row, 1, 1)
     }
   }
