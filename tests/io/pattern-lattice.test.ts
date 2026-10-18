@@ -64,11 +64,14 @@ describe('IO-L1 · 格线定位（印刷图纸）', () => {
     expect(lattice!.cell).toBeCloseTo(12, 0)
   })
 
-  it('底部多余空白行被裁掉（不算图案）', () => {
+  it('默认保留整张网格；trimBlankEdges 打开时裁掉底部空白行', () => {
     const colors = Array.from({ length: 8 * 3 }, () => '#c0392b')
-    const withLegend = detectByLattice(printedChart({ cols: 8, rows: 3, cell: 12, colors, legendRows: 2 }))
-    expect(withLegend).not.toBeNull()
-    expect(withLegend!.rows).toBe(3)
+    const full = detectByLattice(printedChart({ cols: 8, rows: 3, cell: 12, colors, legendRows: 2 }))
+    expect(full).not.toBeNull()
+    expect(full!.rows).toBe(5) // 3 行图案 + 2 行空白，默认保留
+    const trimmed = detectByLattice(printedChart({ cols: 8, rows: 3, cell: 12, colors, legendRows: 2 }), { trimBlankEdges: true })
+    expect(trimmed).not.toBeNull()
+    expect(trimmed!.rows).toBe(3)
   })
 
   it('纯色块、无格线的图 ⇒ 交回周期通道（这里直接返回 null）', () => {

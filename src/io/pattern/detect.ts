@@ -252,7 +252,7 @@ export function detectGrid(img: RgbaImage, opts: RecognizeOptions = {}): DetectO
 
   // 通道一：图上画了贯穿全图的格线（带色号文字的印刷图纸几乎都有）⇒ 直接按格线定位。
   // 格线检测比色差周期稳得多：文字会把"内部要平"的周期判据彻底打乱。
-  const lattice = detectByLattice(img)
+  const lattice = detectByLattice(img, { trimBlankEdges: opts.trimBlankEdges === true })
   if (lattice !== null) {
     warnings.push('检测到格线：按格线定位网格（适合带色号/文字的印刷图纸）')
     return {

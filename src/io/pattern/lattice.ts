@@ -289,7 +289,7 @@ function bandTrimmable(img: RgbaImage, axis: 'row' | 'col', bandStart: number, c
 /**
  * 用格线定位网格。找不到可靠格线（纯色块图纸 / 拍照图）⇒ null，由周期通道接手。
  */
-export function detectByLattice(img: RgbaImage): LatticeGeometry | null {
+export function detectByLattice(img: RgbaImage, opts: { readonly trimBlankEdges?: boolean } = {}): LatticeGeometry | null {
   const { columns: colScore, rows: rowScore } = lineMetrics(img)
   const maxCol = maxOf(colScore)
   const maxRow = maxOf(rowScore)
@@ -324,22 +324,42 @@ export function detectByLattice(img: RgbaImage): LatticeGeometry | null {
   if (right - left < cell * 2 || bottom - top < cell * 2) return null
   // 裁边界：标尺行（顶部列号 "1 2 3 …"）、图例行、以及四周的空白行/列。
   // 只裁"全空位 / 全标尺"的边带 ⇒ 图案本体一格不丢（空白边带本来就不摆块）。
+  // 标尺条（画着行列号的深色条）永远裁掉——它是坐标标注，不是图案。
   const maxTrim = Math.min(12, Math.floor(Math.min((right - left) / cell, (bottom - top) / cell) / 2))
   for (let i = 0; i < maxTrim; i++) {
-    if (bottom - top <= cell * 2 || !bandTrimmable(img, 'row', top, cell, left, right)) break
+    if (bottom - top <= cell * 2 || !bandIsRulerBar(img, 'row', top, cell, left, right)) break
     top = top + cell
   }
   for (let i = 0; i < maxTrim; i++) {
-    if (bottom - top <= cell * 2 || !bandTrimmable(img, 'row', Math.round(bottom - cell), cell, left, right)) break
+    if (bottom - top <= cell * 2 || !bandIsRulerBar(img, 'row', Math.round(bottom - cell), cell, left, right)) break
     bottom = bottom - cell
   }
   for (let i = 0; i < maxTrim; i++) {
-    if (right - left <= cell * 2 || !bandTrimmable(img, 'col', left, cell, top, bottom)) break
+    if (right - left <= cell * 2 || !bandIsRulerBar(img, 'col', left, cell, top, bottom)) break
     left = left + cell
   }
   for (let i = 0; i < maxTrim; i++) {
-    if (right - left <= cell * 2 || !bandTrimmable(img, 'col', Math.round(right - cell), cell, top, bottom)) break
+    if (right - left <= cell * 2 || !bandIsRulerBar(img, 'col', Math.round(right - cell), cell, top, bottom)) break
     right = right - cell
+  }
+  // 可选：再裁掉四周的空白边带（默认关——图纸标注的 80×89 就摆成 80×89，空白格本来不摆块）
+  if (opts.trimBlankEdges === true) {
+    for (let i = 0; i < maxTrim; i++) {
+      if (bottom - top <= cell * 2 || !bandTrimmable(img, 'row', top, cell, left, right)) break
+      top = top + cell
+    }
+    for (let i = 0; i < maxTrim; i++) {
+      if (bottom - top <= cell * 2 || !bandTrimmable(img, 'row', Math.round(bottom - cell), cell, left, right)) break
+      bottom = bottom - cell
+    }
+    for (let i = 0; i < maxTrim; i++) {
+      if (right - left <= cell * 2 || !bandTrimmable(img, 'col', left, cell, top, bottom)) break
+      left = left + cell
+    }
+    for (let i = 0; i < maxTrim; i++) {
+      if (right - left <= cell * 2 || !bandTrimmable(img, 'col', Math.round(right - cell), cell, top, bottom)) break
+      right = right - cell
+    }
   }
   const cols = Math.round((right - left) / cell)
   const rowCount = Math.round((bottom - top) / cell)

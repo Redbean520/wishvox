@@ -24,6 +24,8 @@ export interface PatternOptions {
   manualRows: number | null
   /** 近色归并阈值（最大通道差 0–80） */
   mergeTolerance: number
+  /** 裁掉四周空白边带（默认 false = 保留图纸标称整张网格） */
+  trimBlankEdges: boolean
   /** 与背景同色 = 空位 */
   backgroundToEmpty: boolean
 }
@@ -54,6 +56,7 @@ export const DEFAULT_PATTERN_OPTIONS: PatternOptions = {
   manualCols: null,
   manualRows: null,
   mergeTolerance: 18,
+  trimBlankEdges: false,
   backgroundToEmpty: true,
 }
 

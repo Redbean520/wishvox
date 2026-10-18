@@ -46,6 +46,7 @@ function recognizeLocal(rgba: RgbaImage, options: PatternOptions): void {
   const result = recognizePattern(rgba, {
     mergeTolerance: options.mergeTolerance,
     backgroundToEmpty: options.backgroundToEmpty,
+    trimBlankEdges: options.trimBlankEdges,
     ...(manual !== undefined ? { manual } : {}),
   })
   if (!result.ok) {
@@ -276,6 +277,10 @@ export function PatternImport(): JSX.Element {
       <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, margin: '4px 0', color: 'var(--fg-dim)' }}>
         <input type="checkbox" checked={options.backgroundToEmpty} onChange={(e) => updateOptions({ backgroundToEmpty: e.target.checked })} />
         背景色（纸色）= 空位
+      </label>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, margin: '4px 0', color: 'var(--fg-dim)' }}>
+        <input type="checkbox" checked={options.trimBlankEdges} onChange={(e) => updateOptions({ trimBlankEdges: e.target.checked })} />
+        裁掉四周空白边（默认保留图纸整张网格）
       </label>
 
       <div className="rail-group" style={{ padding: '8px 0 2px' }}>

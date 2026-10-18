@@ -74,6 +74,8 @@ export interface RecognizeOptions {
   }
   /** 近色归并阈值（最大通道差，0–80；默认 18）——图纸色板的重心差异通常小于它 */
   readonly mergeTolerance?: number
+  /** 裁掉四周"整行/整列都是空白或标尺条"的边带（默认 false = 保留图纸标称的整张网格） */
+  readonly trimBlankEdges?: boolean
   /** 与背景同色的格子算空位（默认 true） */
   readonly backgroundToEmpty?: boolean
   /** 全透明格子算空位（默认 true） */
