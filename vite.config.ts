@@ -12,4 +12,11 @@ export default defineConfig({
   // 只有 GitHub Actions 构建走项目页子路径 `/wishvox/`（`https://hydrocylic.github.io/wishvox/`）；
   // 本地 dev / vitest / 普通 build 仍是根路径 `/` ⇒ clone 后 `npm run dev` 不受影响。
   base: process.env.GITHUB_ACTIONS ? '/wishvox/' : '/',
+  // 原子写工具会留下 `.xxx.tmpdir/` 临时目录；Windows 的 FSWatcher 追这些被快速替换的文件
+  // 会抛 EBUSY 并让 dev server 整进程退出。忽略它们，编辑器/工具写文件就不会再把服务搞崩。
+  server: {
+    watch: {
+      ignored: ['**/*.tmpdir/**', '**/.tmpdir/**'],
+    },
+  },
 })
