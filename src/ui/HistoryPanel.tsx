@@ -1,6 +1,6 @@
 import { cmd, commandEnabled, INSPECT_READONLY } from './commands'
 import { useEditorUi } from '../state/editor-store'
-import { FloatingTile } from './floating/FloatingTile'
+import { Pane } from './Pane'
 
 // F12 可点击撤销历史（尽力层 · R1 裁定，参照 vengi MementoPanel）：
 // 列表**只读**（seq · 操作名 label · 改动格数）；**点击某行 = undo(n)/redo(n) 跳到该笔之后**（V13）。
@@ -15,7 +15,7 @@ export function HistoryPanel(): JSX.Element {
   const hint = `${history.length} 笔${undoneCount > 0 ? ` · ${undoneCount} 笔已撤销` : ''}${disabled ? ' · 检视态只读' : ''}`
 
   return (
-    <FloatingTile id="history" summary={hint}>
+    <Pane id="history" summary={hint}>
       {disabled && <p className="warn">{INSPECT_READONLY}</p>}
       {history.length === 0 && <p className="note">（还没有补丁）</p>}
       <ul style={{ listStyle: 'none', padding: 0, margin: 0, maxHeight: 240, overflowY: 'auto' }}>
@@ -49,6 +49,6 @@ export function HistoryPanel(): JSX.Element {
       {history.length > 0 && (
         <p className="note">灰行 = 已撤销的补丁（点击可重做到该处）。</p>
       )}
-    </FloatingTile>
+    </Pane>
   )
 }

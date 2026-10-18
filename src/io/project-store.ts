@@ -53,6 +53,8 @@ export class IdbProjectStore implements ProjectStore {
       }
       req.onsuccess = () => resolve(new IdbProjectStore(req.result))
       req.onerror = () => reject(req.error ?? new Error('indexeddb open failed'))
+      // 隐私模式 / 被占用时 open 可能一直不回调（浏览器不给 onerror）⇒ 明确拒绝，交给内存兜底
+      req.onblocked = () => reject(new Error('indexeddb open blocked'))
     })
   }
 
@@ -81,7 +83,18 @@ export class IdbProjectStore implements ProjectStore {
   }
 }
 
-export async function createProjectStore(): Promise<ProjectStore> {
-  if (IdbProjectStore.supported()) return IdbProjectStore.open()
-  return new MemoryProjectStore()
+/** IndexedDB 打开的超时（ms）：超时/被阻断 ⇒ 退回内存存储，页面照常可用（不白屏） */
+export const IDB_OPEN_TIMEOUT_MS = 1500
+
+/** 浏览器存储：IDB 可用且能在超时内打开 ⇒ IDB；否则退回内存（本轮会话不持久化，但不阻塞 UI）。 */
+export async function createProjectStore(timeoutMs: number = IDB_OPEN_TIMEOUT_MS): Promise<ProjectStore> {
+  if (!IdbProjectStore.supported()) return new MemoryProjectStore()
+  try {
+    return await Promise.race([
+      IdbProjectStore.open(),
+      new Promise<ProjectStore>((resolve) => setTimeout(() => resolve(new MemoryProjectStore()), timeoutMs)),
+    ])
+  } catch {
+    return new MemoryProjectStore()
+  }
 }

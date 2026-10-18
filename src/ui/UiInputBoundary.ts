@@ -1,7 +1,6 @@
-// `D1`（architect §5.4 `UiInputBoundary`）：UI 覆盖层的**可识别 DOM 标记**与边界查询——
-// React 事件与**原生**监听（Viewport 的 canvas 指针族、App 的窗口快捷键）共用同一份判据。
-// 为什么必须是"标记 + 查询"而不是各处 `stopPropagation`：canvas 上有 pointer capture，
-// 且 App 的 Ctrl+Z 挂在 window（捕获阶段之外）——只拦 React 冒泡拦不住这两条路径（architect §5.5）。
+// UI 覆盖层的可识别 DOM 标记与边界查询（原 `ui/floating/UiInputBoundary`，随悬浮块体系移除而上提）。
+// React 事件与原生监听（Viewport 的 canvas 指针族、App 的窗口快捷键）共用同一份判据——
+// 必须"标记 + 查询"而不是各处 stopPropagation：canvas 有 pointer capture、App 的 Ctrl+Z 挂在 window。
 export const UI_BOUNDARY_ATTR = 'data-ui-boundary'
 
 interface BoundaryNode {
@@ -21,8 +20,7 @@ export function isUiEventTarget(target: unknown): boolean {
 }
 
 /** 屏幕点是否落在某个 UI 边界之上（活动笔经过覆盖区时用）。
- *  环境无 `elementFromPoint`（无头垫片 / 老浏览器）⇒ 返回 false，退化为既有"只看坐标出界"的收尾判据，
- *  **不新增**一条会让无头回归抖动的隐式分支。 */
+ *  环境无 `elementFromPoint`（无头垫片 / 老浏览器）⇒ 返回 false，退化为"只看坐标出界"的收尾判据。 */
 export function pointOverUi(clientX: number, clientY: number): boolean {
   const doc = (globalThis as { document?: { elementFromPoint?: (x: number, y: number) => unknown } }).document
   if (!doc || typeof doc.elementFromPoint !== 'function') return false

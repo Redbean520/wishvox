@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { runNoiseSculpt, INSPECT_READONLY } from './commands'
 import type { NoiseFormState } from './commands'
 import { useEditorUi } from '../state/editor-store'
-import { FloatingTile } from './floating/FloatingTile'
+import { Pane } from './Pane'
 
 // F8 噪声模块（REQ-057 · Q3 拍板）：编辑态的**一个动作按钮**（不是新建流程的一步）。
 // 参数 = 幅度 / 密度 / 种子 / 六个方位可勾选（+ 范围与方块）；一次性生成、无动画（心跳动画记账）。
@@ -48,7 +48,7 @@ export function NoisePanel(): JSX.Element {
     </label>
   )
   return (
-    <FloatingTile id="noise" summary={hint}>
+    <Pane id="noise" summary={hint}>
       {disabled && <p className="warn">{INSPECT_READONLY}</p>}
       <label style={{ display: 'block', margin: '6px 0', fontSize: 12 }}>
         范围（默认 = 坯料 / 全体）：
@@ -150,6 +150,6 @@ export function NoisePanel(): JSX.Element {
       <p className="note">
         在范围表面按种子抽签生长 / 侵蚀；同参数（含种子）同结果；心跳动画属以后层。
       </p>
-    </FloatingTile>
+    </Pane>
   )
 }

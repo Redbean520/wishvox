@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { cmd, commandEnabled, INSPECT_READONLY } from './commands'
 import { getEditor } from '../app/runtime'
 import { useEditorUi } from '../state/editor-store'
-import { FloatingTile } from './floating/FloatingTile'
+import { Pane } from './Pane'
 
 // 结构树（REQ-018）＋ r02 扩展：组合节点（REQ-051：可见 · 可选中 ⇒ 视口高亮 · **可展开到 part**）。
 // 构件行：命名 / 选中 / 回退（r01）＋ 删除构件（D-D：文案写明 = 解除归属，块留下）。
@@ -70,7 +70,7 @@ export function PartTree(): JSX.Element {
   const hint = `构件 ${parts.length} · 组合 ${compositions.length} · 手工块 ${manualBlockCount}${selectedName ? ` · 选中「${selectedName}」` : ''}`
 
   return (
-    <FloatingTile id="parts" summary={hint}>
+    <Pane id="parts" summary={hint}>
       <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
         {btn(cmd.compositionNew, '＋组合', '新建组合（语义分组：成员构件 ∪ 手工块）')}
         {btn(cmd.partNew, '＋新构件', '新建空构件并选中（之后的放置归它）')}
@@ -216,6 +216,6 @@ export function PartTree(): JSX.Element {
           手工块 {manualBlockCount} 块（无构件归属；可并入组合或随构件选中放置）
         </p>
       )}
-    </FloatingTile>
+    </Pane>
   )
 }

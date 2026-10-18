@@ -4,7 +4,7 @@ import { getEditor } from '../app/runtime'
 import { syncCameraReadout } from '../edit/camera-sync'
 import { setUi, useEditorUi } from '../state/editor-store'
 import { NO_HIT_KIND } from '../state/preview-warning'
-import { pointOverUi } from './floating/UiInputBoundary'
+import { pointOverUi } from './UiInputBoundary'
 import type { PickResult } from '../interaction/pick'
 
 // T14：系统 crosshair 在视口背景上不可辨 ⇒ 自绘高对比准星，热点 = 中心 (12,12)。
@@ -269,5 +269,5 @@ export function Viewport(): JSX.Element {
 
   // `D1`：HUD 与层次卡移出本组件（工作区覆盖层，`EditorWorkspace` 装配）——这里只剩渲染器宿主，
   // 尺寸只随工作区改变，展开方块不挤压画布、不触发重建。
-  return <div ref={ref} style={{ flex: 1, minHeight: 0, position: 'relative', cursor: crosshairCursor, background: '#ffffff' }} />
+  return <div ref={ref} style={{ flex: 1, minHeight: 0, position: 'relative', cursor: crosshairCursor, background: '#0b0d10' }} />
 }

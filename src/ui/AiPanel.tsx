@@ -4,8 +4,7 @@ import { useAiUi } from '../state/ai-store'
 import { AiGateCard } from './AiGateCard'
 import { AiSession } from './AiSession'
 import { AiSettings } from './AiSettings'
-import { PatternImport } from './PatternImport'
-import { FloatingTile } from './floating/FloatingTile'
+import { Pane } from './Pane'
 
 // r05 T4（末批）· **AI 工作台**（规格 §1.2「AI 工作台」行 · §1.4-2 的三段拆件 · `REQ-060`/`061`）：
 //   件一 `AiSettings`  = 二级折叠「🔌 AI 连接」（设置面，未配置时默认展开）
@@ -53,7 +52,7 @@ export function AiPanel(): JSX.Element {
         : null
 
   return (
-    <FloatingTile
+    <Pane
       id="ai"
       summary={
         <>
@@ -64,7 +63,6 @@ export function AiPanel(): JSX.Element {
       accessory={<AiGateCard />}
     >
       <AiSettings />
-      <PatternImport />
       <AiSession
         view={view}
         running={running}
@@ -75,6 +73,6 @@ export function AiPanel(): JSX.Element {
         setText={setText}
         send={send}
       />
-    </FloatingTile>
+    </Pane>
   )
 }

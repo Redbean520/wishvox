@@ -53,7 +53,7 @@ For in-browser checks that cannot run headless (WebGL, frame rate, render invari
 - **Parts and compositions.** Group blocks into named parts, and group parts into compositions, so "recolor the roof" can target a real object instead of the whole model.
 - **History.** One patch per stroke, or per applied operation batch. Undo, redo, and jump to any point in the patch log.
 - **Project files.** Versioned JSON (v2, reads v1), export/download and import with validation before anything is applied.
-- **AI panel.** A floating session panel that accepts an order, shows a plan, asks for approval at gates, and reports what it changed.
+- **AI workspace.** A docked tab that accepts an order, shows a plan, asks for approval at gates, and reports what it changed.
 - **Bead-pattern import (🖼 图纸 → 方块).** Pick a perler-bead chart image; the panel recovers the grid and its per-cell colors, previews the blocks it will place, then writes them in one patch. Two recognition channels: a local, offline grid detector for regular colored charts, and an optional vision-model call for symbol/code charts or photographed pages (configure "视觉模型" under AI settings for the latter).
 
 ## Architecture
@@ -71,7 +71,7 @@ For in-browser checks that cannot run headless (WebGL, frame rate, render invari
 | [`render`](src/render/README.md) | Draw only: three.js instanced chunk meshes, appearance resolution, highlight and preview. Does not import interaction. |
 | [`interaction`](src/interaction/README.md) | 3D view orchestration, camera rig, ray picking, grid guides. Implements the render port defined by `edit`. |
 | [`ai`](src/ai/README.md) | Agent loop, tool surface derived from the op specs, OpenAI-compatible streaming provider, approval gates, append-only session log. |
-| [`ui`](src/ui/README.md) | React shell, floating panels, viewport host, and the named command table that buttons, shortcuts and AI tools share. |
+| [`ui`](src/ui/README.md) | React shell (top bar + left tool rail + viewport + right dock + status bar), viewport host, and the named command table that buttons, shortcuts and AI tools share. |
 | [`app`](src/app/README.md) | Composition root: lazily created singletons and `bootstrap()`. |
 
 ### Two write paths, one ledger

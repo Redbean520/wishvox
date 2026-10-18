@@ -4,7 +4,7 @@ import { OP_SPECS } from '../core/op-spec'
 import { getEditor } from '../app/runtime'
 import { useEditorUi } from '../state/editor-store'
 import { INSPECT_READONLY } from './commands'
-import { FloatingTile } from './floating/FloatingTile'
+import { Pane } from './Pane'
 
 // r02 手动调用面（REQ-014 ① / plan §2）：选操作 → 填参数 → 选范围 → 应用。
 // 表单由 core/op-spec.ts 的规格表驱动（参数面唯一出处）；应用走 getEditor().runOp ⇒ runProgramOp + PatchLog.applyPlanned（一条补丁），
@@ -153,7 +153,7 @@ export function OpsPanel(): JSX.Element {
   // 条数取 `OP_SPECS.length`（= 9，参数面唯一出处 `core/op-spec.ts`）而非手写常量——
   // 与 `r04` `R1`（"基线数字要带测法"）同精神：口径与来源同点，表变了摘要跟着变。
   return (
-    <FloatingTile id="ops" summary={`${OP_SPECS.length} 个预设操作${disabled ? ' · 检视态只读' : ''}`}>
+    <Pane id="ops" summary={`${OP_SPECS.length} 个预设操作${disabled ? ' · 检视态只读' : ''}`}>
       {disabled && <p className="warn">{INSPECT_READONLY}</p>}
       <select value={name} disabled={disabled} style={{ width: '100%' }} onChange={(e) => pick(e.target.value as OpName)}>
         {OP_SPECS.map((s) => (
@@ -255,7 +255,7 @@ export function OpsPanel(): JSX.Element {
       <button style={{ width: '100%', marginTop: 8 }} disabled={disabled} onClick={apply}>
         ⚙️ 应用（一次 = 一条补丁，可一次撤销）
       </button>
-    </FloatingTile>
+    </Pane>
   )
 }
 

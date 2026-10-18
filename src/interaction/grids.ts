@@ -111,7 +111,7 @@ export class GridGuides {
         }
         if (!want) return null
       }
-      const grid = current && !stale ? current : new THREE.GridHelper(size, divisions, 0x9aa0a8, 0xb7bcc4)
+      const grid = current && !stale ? current : new THREE.GridHelper(size, divisions, 0x3f4a5a, 0x2a323d)
       if (!current || stale) this.scene.add(grid)
       grid.position.set(centerX, y, centerZ)
       return grid

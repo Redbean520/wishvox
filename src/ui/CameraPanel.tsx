@@ -1,6 +1,6 @@
 import { cmd, setCameraField } from './commands'
 import { useEditorUi } from '../state/editor-store'
-import { FloatingTile } from './floating/FloatingTile'
+import { Pane } from './Pane'
 
 // F9 相机参数面板（REQ-058 · Q5 拍板）：距离 · FOV · 目标点 xyz（只读）· 旋转速度 / 阻尼 · 复位视角。
 // 全部会话态——不进项目文件、不进补丁日志；面板值与渲染层实际参数同源（onCameraChange 读回）。
@@ -30,7 +30,7 @@ export function CameraPanel(): JSX.Element {
     </label>
   )
   return (
-    <FloatingTile id="camera" summary={`距离 ${cam.distance.toFixed(0)} · FOV ${cam.fov.toFixed(0)}`}>
+    <Pane id="camera" summary={`距离 ${cam.distance.toFixed(0)} · FOV ${cam.fov.toFixed(0)}`}>
       {num('distance', '距离', 2, 1500, 0.5)}
       {num('fov', 'FOV', 20, 110, 1)}
       {num('rotateSpeed', '旋转速度', 0.1, 3, 0.1)}
@@ -42,6 +42,6 @@ export function CameraPanel(): JSX.Element {
         🎯 复位视角（对准模型中心）
       </button>
       <p className="note">相机参数为会话态：不写入项目文件、不进补丁日志；撤销不回退视图。</p>
-    </FloatingTile>
+    </Pane>
   )
 }

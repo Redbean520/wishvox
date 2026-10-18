@@ -70,8 +70,9 @@ export class VoxelRenderer {
     this.renderer.domElement.style.display = 'block'
     this.container.appendChild(this.renderer.domElement)
 
-    this.scene.background = new THREE.Color(0xffffff) // T17：白底
-    const hemi = new THREE.HemisphereLight(0xffffff, 0x3a3f46, 1.05)
+    // r07 UI 重构：视口底色并入深色主题（原来 T17 的白底与深色外壳反差过大）
+    this.scene.background = new THREE.Color(0x0b0d10)
+    const hemi = new THREE.HemisphereLight(0xdce6f5, 0x151b24, 1.15)
     const dir = new THREE.DirectionalLight(0xffffff, 1.5)
     dir.position.set(40, 80, 30)
     this.scene.add(hemi, dir) // T17：去地面网格（GridHelper 归 interaction/grids）
