@@ -125,6 +125,132 @@ function sampleCell(img: RgbaImage, x0: number, y0: number, x1: number, y1: numb
   return { hex: rgbToHex(fill), text: inkRatio >= TEXT_RATIO, uniformity }
 }
 
+/** 纸白判定（与 legend-palette 同口径） */
+const isPaperPixel = (p: { r: number; g: number; b: number }): boolean => {
+  const mx = Math.max(p.r, p.g, p.b)
+  const mn = Math.min(p.r, p.g, p.b)
+  // 与经验取样的"纸白"同口径：JPEG 会把纯白背景压到 240–250，不能要求 ≥246
+  return (p.r + p.g + p.b) / 3 >= PAPER_LUM && mx - mn <= PAPER_SPREAD
+}
+
+const parsePaletteRgb = (palette: ReadonlyArray<string>): Array<{ r: number; g: number; b: number }> =>
+  palette.map((hex) => ({ r: parseInt(hex.slice(1, 3), 16), g: parseInt(hex.slice(3, 5), 16), b: parseInt(hex.slice(5, 7), 16) }))
+
+/**
+ * 有调色板时的取样：每个像素投票给最近的色卡颜色（纸白像素单独计"空位票"）。
+ * 众数投票对"格内印着色号文字"天然免疫：底色像素占多数，文字/水印都是少数派；
+ * 同时颜色直接取色卡值 ⇒ 不同来源（原图 / 截图 / 重压缩）的同一张图纸得到一致的颜色。
+ */
+function sampleCellWithPalette(
+  img: RgbaImage,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  palette: ReadonlyArray<string>,
+  paletteRgb: ReadonlyArray<{ r: number; g: number; b: number }>,
+): CellSample {
+  const w = x1 - x0
+  const h = y1 - y0
+  if (w <= 0 || h <= 0) return { hex: null, text: false, uniformity: 0 }
+  if (w < 4 || h < 4) {
+    const p = pixelAt(img, Math.floor((x0 + x1) / 2), Math.floor((y0 + y1) / 2))
+    if (p.a < 32) return { hex: null, text: false, uniformity: 0 }
+    let best = 0
+    let bestD = Number.POSITIVE_INFINITY
+    for (let i = 0; i < paletteRgb.length; i++) {
+      const d = channelDistance(p, paletteRgb[i]!)
+      if (d < bestD) {
+        bestD = d
+        best = i
+      }
+    }
+    return { hex: palette[best]!, text: false, uniformity: 1 }
+  }
+  const inset = Math.max(1, Math.min(3, Math.round(Math.min(w, h) * 0.18)))
+  const votes = new Int32Array(paletteRgb.length)
+  let paperVotes = 0
+  let total = 0
+  let dark = 0
+  for (let y = y0 + inset; y < y1 - inset; y++) {
+    for (let x = x0 + inset; x < x1 - inset; x++) {
+      const p = pixelAt(img, x, y)
+      if (p.a < 32) continue
+      total++
+      if (Math.max(p.r, p.g, p.b) < 130) dark++
+      if (isPaperPixel(p)) {
+        paperVotes++
+        continue
+      }
+      let best = 0
+      let bestD = Number.POSITIVE_INFINITY
+      for (let i = 0; i < paletteRgb.length; i++) {
+        const d = channelDistance(p, paletteRgb[i]!)
+        if (d < bestD) {
+          bestD = d
+          best = i
+        }
+      }
+      votes[best]!++
+    }
+  }
+  if (total === 0) return { hex: null, text: false, uniformity: 0 }
+  let winner = 0
+  for (let i = 1; i < votes.length; i++) if (votes[i]! > votes[winner]!) winner = i
+  const winnerVotes = votes[winner] ?? 0
+  const darkRatio = dark / total
+  const whiteish = (c: { r: number; g: number; b: number }): boolean => {
+    const lum = (c.r + c.g + c.b) / 3
+    const spread = Math.max(c.r, c.g, c.b) - Math.min(c.r, c.g, c.b)
+    return lum >= 240 && spread <= 14
+  }
+  // 空白：纸白票明显占优且没有文字
+  if (paperVotes > winnerVotes && darkRatio < TEXT_RATIO) return { hex: null, text: false, uniformity: paperVotes / total }
+  if (paperVotes >= total * 0.6 && darkRatio < TEXT_RATIO) return { hex: null, text: false, uniformity: paperVotes / total }
+  const chosen = palette[winner]!
+  // 白底 + 深色文字 = 白豆：选一个最接近白的色卡颜色（找不到就用纯白）
+  if (paperVotes >= winnerVotes && darkRatio >= TEXT_RATIO) {
+    let bestWhite: string | null = null
+    let bestWhiteD = Number.POSITIVE_INFINITY
+    for (const hex of palette) {
+      const c = { r: parseInt(hex.slice(1, 3), 16), g: parseInt(hex.slice(3, 5), 16), b: parseInt(hex.slice(5, 7), 16) }
+      if (!whiteish(c)) continue
+      const d = 255 * 3 - (c.r + c.g + c.b)
+      if (d < bestWhiteD) {
+        bestWhiteD = d
+        bestWhite = hex
+      }
+    }
+    return { hex: bestWhite ?? '#ffffff', text: true, uniformity: paperVotes / total }
+  }
+  if (whiteish(paletteRgb[winner]!)) {
+    return darkRatio >= TEXT_RATIO ? { hex: chosen, text: true, uniformity: winnerVotes / total } : { hex: null, text: false, uniformity: winnerVotes / total }
+  }
+  return { hex: chosen, text: darkRatio >= TEXT_RATIO, uniformity: winnerVotes / total }
+}
+
+/**
+ * 调色板投票 + 经验取样互校：图例色卡可能只提到部分颜色（浅色/白色常被当纸白漏掉），
+ * 所以投票结果与经验取样差 > 55 时以经验取样为准——命中色卡的颜色有精确一致性，
+ * 漏掉的颜色保留实际色调（而不是被硬吸附到某个错误的深色）。
+ */
+function mergePaletteAndEmpirical(
+  img: RgbaImage,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  palette: ReadonlyArray<string>,
+  paletteRgb: ReadonlyArray<{ r: number; g: number; b: number }>,
+  empirical: CellSample,
+): CellSample {
+  const voted = sampleCellWithPalette(img, x0, y0, x1, y1, palette, paletteRgb)
+  if (voted.hex === null || empirical.hex === null) return voted
+  const votedRgb = { r: parseInt(voted.hex.slice(1, 3), 16), g: parseInt(voted.hex.slice(3, 5), 16), b: parseInt(voted.hex.slice(5, 7), 16) }
+  const empRgb = { r: parseInt(empirical.hex.slice(1, 3), 16), g: parseInt(empirical.hex.slice(3, 5), 16), b: parseInt(empirical.hex.slice(5, 7), 16) }
+  return channelDistance(votedRgb, empRgb) > 30 ? empirical : voted
+}
+
 export interface SampleOutcome {
   readonly grid: PatternGrid
   readonly palette: ReadonlyArray<PatternColorStat>
@@ -190,9 +316,17 @@ function parseHexRgb(hex: string): Rgb | null {
 export function sampleGrid(
   img: RgbaImage,
   geometry: GridGeometry,
-  opts: { readonly background: Rgb | null; readonly mergeTolerance?: number; readonly backgroundToEmpty?: boolean },
+  opts: {
+    readonly background: Rgb | null
+    readonly mergeTolerance?: number
+    readonly backgroundToEmpty?: boolean
+    /** 图例色卡调色板：给了就"投票吸附"到这些精确颜色 */
+    readonly palette?: ReadonlyArray<string>
+  },
 ): SampleOutcome {
   const { cols, rows, left, top, cellW, cellH } = geometry
+  const legendPalette = opts.palette !== undefined && opts.palette.length >= 4 ? opts.palette : null
+  const legendRgb = legendPalette === null ? null : parsePaletteRgb(legendPalette)
   const samples: CellSample[] = []
   const counts = new Map<string, number>()
   let emptyCells = 0
@@ -204,7 +338,8 @@ export function sampleGrid(
       const y0 = Math.round(top + r * cellH)
       const x1 = Math.round(left + (c + 1) * cellW)
       const y1 = Math.round(top + (r + 1) * cellH)
-      const cell = sampleCell(img, x0, y0, x1, y1)
+      const empirical = sampleCell(img, x0, y0, x1, y1)
+      const cell = legendPalette !== null && legendRgb !== null ? mergePaletteAndEmpirical(img, x0, y0, x1, y1, legendPalette, legendRgb, empirical) : empirical
       uniformSum += cell.uniformity
       let hex = cell.hex
       if (hex !== null && cell.text && hex === '#ffffff') whiteBeads++

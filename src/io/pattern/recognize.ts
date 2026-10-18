@@ -4,6 +4,7 @@ import type { PatternRecognizeResult, RecognizeOptions, RgbaImage, Rgb } from '.
 import { hexRgb } from './types'
 import { detectGrid } from './detect'
 import { sampleGrid } from './sample'
+import { extractLegendPalette } from './legend-palette'
 
 /** 水平镜像（行内左右翻转） */
 function mirrorGrid(grid: { cols: number; rows: number; cells: ReadonlyArray<string | null> }): { cols: number; rows: number; cells: Array<string | null> } {
@@ -30,7 +31,14 @@ export function recognizePattern(img: RgbaImage, opts: RecognizeOptions = {}): P
     background = hexRgb(opts.background)
     if (background === null) return { ok: false, reason: `背景色无效（须为不透明 HEX）：${opts.background}` }
   }
-  let cropped = geometry
+  // 图纸底部的图例色卡：① 作为精确调色板（影响颜色）② 用它把图例区域从网格里裁掉
+  const legend = extractLegendPalette(img)
+  let geometryWithLegend = geometry
+  if (legend !== null) {
+    const rowsCap = Math.floor((legend.top - geometry.top - 1) / geometry.cellH)
+    if (rowsCap >= 2 && rowsCap < geometry.rows) geometryWithLegend = { ...geometry, rows: rowsCap }
+  }
+  let cropped = geometryWithLegend
   const crop = opts.crop
   if (crop !== undefined) {
     const cl = Math.max(0, Math.round(crop.left ?? 0))
@@ -52,6 +60,7 @@ export function recognizePattern(img: RgbaImage, opts: RecognizeOptions = {}): P
     background,
     mergeTolerance: opts.mergeTolerance,
     backgroundToEmpty: opts.backgroundToEmpty,
+    ...(legend !== null ? { palette: legend.colors } : {}),
   })
   const grid = opts.mirrorX === true ? mirrorGrid(sampled.grid) : sampled.grid
   return {
